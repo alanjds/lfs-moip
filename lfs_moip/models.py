@@ -20,13 +20,13 @@ class MoipProcessor(PaymentMethodProcessor):
         else:
             raise RuntimeError()
 
-        bill_text = 'Compra %s em %s' % ( transaction_id, self.request.build_absolute_uri('/').replace('http://', '').strip('/') )
+        bill_title = 'Compra %s em %s' % ( transaction_id, self.request.build_absolute_uri('/').replace('http://', '').strip('/') )
 
         if 'MOIP_TOKEN' in settings:
             # API integration available!
             from moipy.moip import Moip
 
-            moip = Moip(bill_text[:64]) # Docs says "max size = 64 char"
+            moip = Moip(bill_title[:64]) # Docs says "max size = 64 char"
 
             # Todo: set some person data, to save time
             #address = dict(Logradouro='Rua xxxxx',Numero='222',Bairro='xxxx',Cidade='xxxx',Estado='xx',CEP='xxxxxx',TelefoneFixo='xxxxxxxxxx')
