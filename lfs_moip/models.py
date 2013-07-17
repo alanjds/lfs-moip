@@ -57,7 +57,16 @@ class MoipProcessor(PaymentMethodProcessor):
 
         elif 'MOIP_ACCOUNT' in settings:
             # Only HTML integration available
-            import furl
+            from furl import furl
+            f = furl('https://www.moip.com.br/PagamentoMoIP.do')
+            f['id_carteira'] = settings.MOIP_ACCOUNT
+            f['valor'] = self.order.price
+            f['nome'] = bill_title[:64] # Docs says "max size = 64 char"
+            f['id_transacao'] = transaction_id
+            result = {
+                'accepted': True,
+                'next_url': f.url,
+            }
 
         else:
             raise RuntimeError('Please configure your MoIP settings.')
