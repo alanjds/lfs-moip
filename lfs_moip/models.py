@@ -4,20 +4,17 @@ from django.db import models
 # lfs imports
 from lfs.order.models import Order
 
-# django-paypal imports
-from paypal.standard.ipn.models import PayPalIPN
+# django-moip imports
+from django_moip.html.nit.models import MoipNIT
 
 
-class PayPalOrderTransaction(models.Model):
+class MoipOrderTransaction(models.Model):
     order = models.ForeignKey(Order, unique=True)
-    ipn = models.ManyToManyField(PayPalIPN)
-
-    class Meta:
-        app_label = "payment"  # No migration needed after factored out
+    ipn = models.ManyToManyField(MoipNIT)
 
 
 # See https://bitbucket.org/diefenbach/django-lfs/issue/197/
-from paypal.standard.ipn.views import ipn
-ipn.csrf_exempt = True
+from django_moip.html.nit.views import nit
+nit.csrf_exempt = True
 
-from lfs_paypal.listeners import *
+from lfs_moip.listeners import *
