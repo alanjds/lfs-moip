@@ -12,14 +12,14 @@ from django.conf import settings
 from django.contrib.sites.models import Site
 from django.core.urlresolvers import reverse
 
-# django paypal imports
-from paypal.standard.conf import POSTBACK_ENDPOINT
-from paypal.standard.conf import SANDBOX_POSTBACK_ENDPOINT
+# django django_moip imports
+from django_moip.html.conf import POSTBACK_ENDPOINT
+from django_moip.html.conf import SANDBOX_POSTBACK_ENDPOINT
 
 
-class PayPalProcessor(PaymentMethodProcessor):
+class MoipProcessor(PaymentMethodProcessor):
     def process(self):
-        if settings.LFS_PAYPAL_REDIRECT:
+        if settings.LFS_MOIP_REDIRECT:
             return {
                 "accepted": True,
                 "next_url": self.order.get_pay_link(self.request),
@@ -39,12 +39,13 @@ class PayPalProcessor(PaymentMethodProcessor):
         conv = locale.localeconv()
         default_currency = conv['int_curr_symbol']
 
+        """ Disabled:
         info = {
             "cmd": "_xclick",
             "upload": "1",
             "business": settings.PAYPAL_RECEIVER_EMAIL,
             "currency_code": default_currency,
-            "notify_url": "http://" + current_site.domain + reverse('paypal-ipn'),
+            "notify_url": "http://" + current_site.domain + reverse('moip-nit'),
             "return": "http://" + current_site.domain + reverse('lfs_thank_you'),
             "first_name": self.order.invoice_address.firstname,
             "last_name": self.order.invoice_address.lastname,
@@ -60,9 +61,10 @@ class PayPalProcessor(PaymentMethodProcessor):
             "amount": "%.2f" % (self.order.price - self.order.tax),
             "tax": "%.2f" % self.order.tax,
         }
+        """
 
         parameters = "&".join(["%s=%s" % (k, v) for (k, v) in info.items()])
-        if getattr(settings, 'PAYPAL_DEBUG', settings.DEBUG):
+        if getattr(settings, 'MOIP_DEBUG', settings.DEBUG):
             url = SANDBOX_POSTBACK_ENDPOINT + "?" + parameters
         else:
             url = POSTBACK_ENDPOINT + "?" + parameters
