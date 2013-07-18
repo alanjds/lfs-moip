@@ -1,3 +1,4 @@
+#coding: utf-8
 # python imports
 import logging
 
@@ -13,22 +14,22 @@ from lfs.order.settings import PAYMENT_FLAGGED
 from lfs.mail import utils as mail_utils
 
 # lfs-paypal imports
-from lfs_paypal.models import PayPalOrderTransaction
+from lfs_moip.models import MoipOrderTransaction
 
-# django-paypal imports
-from paypal.standard.ipn.signals import payment_was_successful, payment_was_flagged
-from paypal.standard.pdt.signals import pdt_failed, pdt_successful
-from paypal.standard.models import ST_PP_COMPLETED
+# django-moip imports
+from django_moip.html.nit.signals import payment_was_successful, payment_was_flagged
+from django_moip.html.redirector.signals import redirector_failed, redirector_successful
+from django_moip.html.models import ST_MOIP_COMPLETED
 
 # load logger
 logger = logging.getLogger("default")
 
 
-def mark_payment(pp_obj, order_state=PAID):
+def mark_payment(moip_obj, order_state=PAID):
     order = None
     try:
-        logger.info("PayPal: getting order for uuid %s" % pp_obj.custom)
-        order_uuid = pp_obj.custom
+        logger.info("MoIP: getting order for uuid %s" % moip_obj.custom)
+        order_uuid = moip_obj.custom
         order = Order.objects.get(uuid=order_uuid)
         if order is not None:
             order_old_state = order.state
@@ -39,56 +40,56 @@ def mark_payment(pp_obj, order_state=PAID):
                 if getattr(settings, 'LFS_SEND_ORDER_MAIL_ON_PAYMENT', False):
                     mail_utils.send_order_received_mail(order)
     except Order.DoesNotExist, e:
-        logger.error("PayPal: %s" % e)
+        logger.error("MoIP: %s" % e)
     return order
 
 
 def successful_payment(sender, **kwargs):
-    logger.info("PayPal: successful ipn payment")
-    ipn_obj = sender
-    order = mark_payment(ipn_obj, PAID)
+    logger.info("MoIP: successful NIT payment")
+    nit_obj = sender
+    order = mark_payment(nit_obj, PAID)
     if order is not None:
-        transaction, created = PayPalOrderTransaction.objects.get_or_create(order=order)
-        transaction.ipn.add(ipn_obj)
+        transaction, created = MoipOrderTransaction.objects.get_or_create(order=order)
+        transaction.nit.add(nit_obj)
         transaction.save()
     else:
-        logger.warning("PayPal: successful ipn payment, no order found for uuid %s" % ipn_obj.custom)
+        logger.warning("MoIP: successful NIT payment, no order found for uuid %s" % nit_obj.custom)
 
 
 def unsuccessful_payment(sender, **kwargs):
-    logger.info("PayPal: unsuccessful ipn payment")
-    ipn_obj = sender
-    if ipn_obj:
+    logger.info("MoIP: unsuccessful NIT payment")
+    nit_obj = sender
+    if nit_obj:
         order = None
-        if ipn_obj.payment_status == ST_PP_COMPLETED:
-            logger.info("PayPal: payment flaged")
-            order = mark_payment(ipn_obj, PAYMENT_FLAGGED)
+        if nit_obj.payment_status == ST_MOIP_COMPLETED:
+            logger.info("MoIP: payment flaged")
+            order = mark_payment(nit_obj, PAYMENT_FLAGGED)
         else:
-            logger.info("PayPal: payment failed")
-            order = mark_payment(ipn_obj, PAYMENT_FAILED)
+            logger.info("MoIP: payment failed")
+            order = mark_payment(nit_obj, PAYMENT_FAILED)
         if order is not None:
-            transaction, created = PayPalOrderTransaction.objects.get_or_create(order=order)
-            transaction.ipn.add(ipn_obj)
+            transaction, created = MoipOrderTransaction.objects.get_or_create(order=order)
+            transaction.nit.add(nit_obj)
             transaction.save()
         else:
-            logger.warning("PayPal: unsuccessful ipn payment, no order found for uuid %s" % ipn_obj.custom)
+            logger.warning("MoIP: unsuccessful NIT payment, no order found for uuid %s" % nit_obj.custom)
     else:
-        logger.warning("PayPal: unsuccessful ipn payment signal with no ipn object")
+        logger.warning("MoIP: unsuccessful NIT payment signal with no NIT object")
 
 
-def successful_pdt(sender, **kwargs):
-    logger.info("PayPal: successful pdt payment")
-    pdt_obj = sender
-    mark_payment(pdt_obj, True)
+def successful_redirector(sender, **kwargs):
+    logger.info("MoIP: successful redirector payment")
+    redirector_obj = sender
+    mark_payment(redirector_obj, True)
 
 
-def unsuccesful_pdt(sender, **kwargs):
-    logger.info("PayPal: unsuccessful pdt payment")
-    pdt_obj = sender
-    mark_payment(pdt_obj, False)
+def unsuccesful_redirector(sender, **kwargs):
+    logger.info("MoIP: unsuccessful redirector payment")
+    redirector_obj = sender
+    mark_payment(redirector_obj, False)
 
 
-payment_was_successful.connect(successful_payment, dispatch_uid="Order.ipn_successful")
-payment_was_flagged.connect(unsuccessful_payment, dispatch_uid="Order.ipn_unsuccessful")
-pdt_successful.connect(successful_pdt, dispatch_uid="Order.pdt_successful")
-pdt_failed.connect(unsuccesful_pdt, dispatch_uid="Order.pdt_unsuccessful")
+payment_was_successful.connect(successful_payment, dispatch_uid="Order.nit_successful")
+payment_was_flagged.connect(unsuccessful_payment, dispatch_uid="Order.nit_unsuccessful")
+redirector_successful.connect(successful_redirector, dispatch_uid="Order.redirector_successful")
+redirector_failed.connect(unsuccesful_redirector, dispatch_uid="Order.redirector_unsuccessful")
