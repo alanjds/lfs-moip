@@ -1,16 +1,242 @@
-"""
-This file demonstrates writing tests using the unittest module. These will pass
-when you run "manage.py test".
-
-Replace this with more appropriate tests for your application.
-"""
-
+#coding: utf-8
+# django imports
+from django.conf import settings
+from django.core.urlresolvers import reverse
 from django.test import TestCase
 
+# lfs imports
+from lfs.addresses.models import Address
+from lfs.core.models import Country
+from lfs.order.models import Order
+from lfs.order.settings import PAID
+from lfs.order.settings import PAYMENT_FAILED
+from lfs.order.settings import PAYMENT_FLAGGED
+from lfs.order.settings import SUBMITTED
+from lfs.payment.models import PaymentMethod
 
-class SimpleTest(TestCase):
-    def test_basic_addition(self):
+# lfs_moip imports
+from lfs_moip.models import MoipOrderTransaction
+
+# django-moip imports
+from django_moip.html.nit.models import MoipNIT
+from django_moip.html.models import ST_MOIP_COMPLETED, ST_MOIP_DENIED
+
+
+class MoipPaymentTestCase(TestCase):
+    """Tests moip payments
+    """
+    fixtures = ['lfs_shop.xml']
+
+    def setUp(self):
+
+        self.uuid = "981242b5-fb0c-4563-bccb-e03033673d2a"
+        self.NIT_POST_PARAMS = {
+            "protection_eligibility": "Ineligible",
+            "last_name": "User",
+            "txn_id": "51403485VH153354B",
+            "receiver_email": settings.MOIP_RECEIVER_EMAIL,
+            "payment_status": ST_MOIP_COMPLETED,
+            "payment_gross": "10.00",
+            "tax": "0.00",
+            "residence_country": "US",
+            "invoice": "0004",
+            "payer_status": "verified",
+            "txn_type": "express_checkout",
+            "handling_amount": "0.00",
+            "payment_date": "23:04:06 Feb 02, 2009 PST",
+            "first_name": "Test",
+            "item_name": "Something from the shop",
+            "charset": "windows-1252",
+            "custom": self.uuid,
+            "notify_version": "2.6",
+            "transaction_subject": "",
+            "test_ipn": "1",
+            "item_number": "1",
+            "receiver_id": "258DLEHY2BDK6",
+            "payer_id": "BN5JZ2V7MLEV4",
+            "verify_sign": "An5ns1Kso7MWUdW4ErQKJJJ4qi4-AqdZy6dD.sGO3sDhTf1wAbuO2IZ7",
+            "payment_fee": "0.59",
+            "mc_fee": "0.59",
+            "mc_currency": "USD",
+            "shipping": "0.00",
+            "payer_email": "bishan_1233269544_per@gmail.com",
+            "payment_type": "instant",
+            "mc_gross": "10.00",
+            "quantity": "1",
+        }
+
+    def test_successful_order_transaction_created(self):
+        """Tests we have a transaction associated with an order after payment
         """
-        Tests that 1 + 1 always equals 2.
+        def fake_postback(self, test=True):
+            """Perform a Fake MoIP NIT Postback request."""
+            return 'VERIFIED'
+
+        MoipNIT._postback = fake_postback
+        country = Country.objects.get(code="ie")
+        shipping_address = Address.objects.create(
+            firstname="bill",
+            lastname="blah",
+            line1="bills house",
+            line2="bills street",
+            city="bills town",
+            state="bills state",
+            zip_code="bills zip code",
+            country=country)
+        invoice_address = Address.objects.create(
+            firstname="bill",
+            lastname="blah",
+            line1="bills house",
+            line2="bills street",
+            city="bills town",
+            state="bills state",
+            zip_code="bills zip code",
+            country=country)
+
+        order = Order(invoice_address=invoice_address, shipping_address=shipping_address, uuid=self.uuid)
+        self.assertEqual(order.state, SUBMITTED)
+        order.save()
+        self.assertEqual(len(MoipNIT.objects.all()), 0)
+        self.assertEqual(len(MoipOrderTransaction.objects.all()), 0)
+        post_params = self.NIT_POST_PARAMS
+        response = self.client.post(reverse('moip-ipn'), post_params)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(MoipNIT.objects.all()), 1)
+        self.assertEqual(len(MoipOrderTransaction.objects.all()), 1)
+        ipn_obj = MoipNIT.objects.all()[0]
+        self.assertEqual(ipn_obj.flag, False)
+        order = Order.objects.all()[0]
+        self.assertEqual(order.state, PAID)
+
+    def test_failed_order_transaction_created(self):
+        """Tests a failed moip transaction
         """
-        self.assertEqual(1 + 1, 2)
+        def fake_postback(self, test=True):
+            """Perform a Fake MoIP NIT Postback request."""
+            return 'INVALID'
+
+        MoipNIT._postback = fake_postback
+        country = Country.objects.get(code="ie")
+        shipping_address = Address.objects.create(
+            firstname="bill",
+            lastname="blah",
+            line1="bills house",
+            line2="bills street",
+            city="bills town",
+            state="bills state",
+            zip_code="bills zip code",
+            country=country)
+        invoice_address = Address.objects.create(
+            firstname="bill",
+            lastname="blah",
+            line1="bills house",
+            line2="bills street",
+            city="bills town",
+            state="bills state",
+            zip_code="bills zip code",
+            country=country)
+        order = Order(invoice_address=invoice_address, shipping_address=shipping_address, uuid=self.uuid)
+
+        self.assertEqual(order.state, SUBMITTED)
+        order.save()
+        self.assertEqual(len(MoipNIT.objects.all()), 0)
+        self.assertEqual(len(MoipOrderTransaction.objects.all()), 0)
+        post_params = self.NIT_POST_PARAMS
+        payment_status_update = {"payment_status": ST_MOIP_DENIED}
+        post_params.update(payment_status_update)
+        response = self.client.post(reverse('moip-ipn'), post_params)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(MoipNIT.objects.all()), 1)
+        self.assertEqual(len(MoipOrderTransaction.objects.all()), 1)
+        ipn_obj = MoipNIT.objects.all()[0]
+        self.assertEqual(ipn_obj.payment_status, ST_MOIP_DENIED)
+        self.assertEqual(ipn_obj.flag, True)
+        order = Order.objects.all()[0]
+        self.assertEqual(order.state, PAYMENT_FAILED)
+
+    def test_succesful_order_with_flagged_payment_invalid_receiver_email(self):
+        """Tests a succesful moip transaction that is flagged with an invalide receiver email
+        """
+        def fake_postback(self, test=True):
+            """Perform a Fake MoIP NIT Postback request."""
+            return 'VERIFIED'
+        MoipNIT._postback = fake_postback
+        country = Country.objects.get(code="ie")
+        shipping_address = Address.objects.create(
+            firstname="bill",
+            lastname="blah",
+            line1="bills house",
+            line2="bills street",
+            city="bills town",
+            state="bills state",
+            zip_code="bills zip code",
+            country=country)
+        invoice_address = Address.objects.create(
+            firstname="bill",
+            lastname="blah",
+            line1="bills house",
+            line2="bills street",
+            city="bills town",
+            state="bills state",
+            zip_code="bills zip code",
+            country=country)
+        order = Order(invoice_address=invoice_address, shipping_address=shipping_address, uuid=self.uuid)
+        self.assertEqual(order.state, SUBMITTED)
+        order.save()
+        self.assertEqual(len(MoipNIT.objects.all()), 0)
+        self.assertEqual(len(MoipOrderTransaction.objects.all()), 0)
+        post_params = self.NIT_POST_PARAMS
+        incorrect_receiver_email_update = {"receiver_email": "incorrect_email@someotherbusiness.com"}
+        post_params.update(incorrect_receiver_email_update)
+        response = self.client.post(reverse('moip-ipn'), post_params)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(MoipNIT.objects.all()), 1)
+        self.assertEqual(len(MoipOrderTransaction.objects.all()), 1)
+        ipn_obj = MoipNIT.objects.all()[0]
+        self.assertEqual(ipn_obj.payment_status, ST_MOIP_COMPLETED)
+        self.assertEqual(ipn_obj.flag, True)
+        self.assertEqual(ipn_obj.flag_info, u'Invalid receiver_email. (incorrect_email@someotherbusiness.com)')
+        order = Order.objects.all()[0]
+        self.assertEqual(order.state, PAYMENT_FLAGGED)
+
+    def test_correct_address_fields_set_on_checkout(self):
+        country = Country.objects.get(code="us")
+        shipping_address = Address.objects.create(
+            firstname="bill",
+            lastname="blah",
+            line1="bills house",
+            line2="bills street",
+            city="bills town",
+            state="bills state",
+            zip_code="bills zip code",
+            country=country)
+        invoice_address = Address.objects.create(
+            firstname="bill",
+            lastname="blah",
+            line1="bills house",
+            line2="bills street",
+            city="bills town",
+            state="bills state",
+            zip_code="bills zip code",
+            country=country)
+        order = Order(invoice_address=invoice_address, shipping_address=shipping_address, uuid=self.uuid)
+        self.assertEqual(order.state, SUBMITTED)
+        pm = PaymentMethod.objects.create(
+            active=True,
+            module="lfs_moip.MoipProcessor",
+        )
+
+        order.payment_method = pm
+        order.save()
+        url = order.get_pay_link(None)
+
+        # test unique id
+        self.assertEqual(('custom=' + self.uuid) in url, True)
+
+        # test address stuff
+        self.assertEqual('first_name=bill' in url, True)
+        self.assertEqual('last_name=blah' in url, True)
+        self.assertEqual('address1=bills house' in url, True)
+        self.assertEqual('address2=bills street' in url, True)
+        self.assertEqual('state=bills state' in url, True)
+        self.assertEqual('zip=bills zip code' in url, True)
