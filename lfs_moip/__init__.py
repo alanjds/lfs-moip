@@ -45,10 +45,10 @@ class MoipProcessor(PaymentMethodProcessor):
         import ipdb; ipdb.set_trace()
         info = {
             "id_carteira": settings.MOIP_RECEIVER_EMAIL,
-            "id_transacao": self.order.uuid,
+            "id_transacao": self.order.uuid.replace('-', ''),
             "pagador_nome": (u'%s %s' %(self.order.invoice_firstname, self.order.invoice_lastname)).strip(),
             "pagador_logradouro": self.order.invoice_line1,
-            "pagador_complemento": self.order.invoice_line2,
+            "pagador_bairro": self.order.invoice_line2,
             "pagador_cidade": self.order.invoice_city,
             "pagador_estado": self.order.invoice_state,
             "pagador_cep": self.order.invoice_code,
