@@ -54,13 +54,10 @@ class MoipProcessor(PaymentMethodProcessor):
             "pagador_cep": self.order.invoice_code,
             #"frete": "1",
             "nome": u"%s - %s" % (shop.name, shop.shop_owner),
-            "valor": "%i" % (self.order.price - self.order.tax)*100, # no decimal digits
+            "valor": "%i" % ((self.order.price - self.order.tax)*100), # no decimal dot
         }
         form = MoipPaymentsForm(data=info)
-        if form.is_valid():
-            link = form.get_link()
-        else:
-            raise RuntimeError('Please check your MoIP settings and try again.') # should never occur
+        link = form.get_link()
 
         #if getattr(settings, 'MOIP_DEBUG', settings.DEBUG):
         #    url = SANDBOX_POSTBACK_ENDPOINT + "?" + parameters
