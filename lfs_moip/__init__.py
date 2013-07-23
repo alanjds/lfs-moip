@@ -15,19 +15,21 @@ from django.core.urlresolvers import reverse
 # django django_moip imports
 from django_moip.html.conf import POSTBACK_ENDPOINT
 from django_moip.html.conf import SANDBOX_POSTBACK_ENDPOINT
+from django_moip.html.forms import MoipPaymentsForm
 
 
 class MoipProcessor(PaymentMethodProcessor):
     def process(self):
-        if settings.LFS_MOIP_REDIRECT:
+        import ipdb; ipdb.set_trace()
+        if getattr(settings, 'LFS_MOIP_INTEGRATION', 'HTML').upper() == 'API':
             return {
                 "accepted": True,
-                "next_url": self.order.get_pay_link(self.request),
+                "next_url": reverse("lfs_thank_you"),
             }
         else:
             return {
                 "accepted": True,
-                "next_url": reverse("lfs_thank_you"),
+                "next_url": self.order.get_pay_link(self.request),
             }
 
     def get_create_order_time(self):
@@ -36,37 +38,33 @@ class MoipProcessor(PaymentMethodProcessor):
     def get_pay_link(self):
         shop = lfs_get_object_or_404(Shop, pk=1)
         current_site = Site.objects.get(id=settings.SITE_ID)
-        conv = locale.localeconv()
-        default_currency = conv['int_curr_symbol']
 
-        """ Disabled:
+        #notify_url = "http://" + current_site.domain + reverse('moip-nit')
+        redirector_url = "http://" + current_site.domain + reverse('lfs_thank_you')
+
+        import ipdb; ipdb.set_trace()
         info = {
-            "cmd": "_xclick",
-            "upload": "1",
-            "business": settings.PAYPAL_RECEIVER_EMAIL,
-            "currency_code": default_currency,
-            "notify_url": "http://" + current_site.domain + reverse('moip-nit'),
-            "return": "http://" + current_site.domain + reverse('lfs_thank_you'),
-            "first_name": self.order.invoice_address.firstname,
-            "last_name": self.order.invoice_address.lastname,
-            "address1": self.order.invoice_address.line1,
-            "address2": self.order.invoice_address.line2,
-            "city": self.order.invoice_address.city,
-            "state": self.order.invoice_address.state,
-            "zip": self.order.invoice_address.zip_code,
-            "no_shipping": "1",
-            "custom": self.order.uuid,
-            "invoice": self.order.uuid,
-            "item_name": shop.shop_owner,
-            "amount": "%.2f" % (self.order.price - self.order.tax),
-            "tax": "%.2f" % self.order.tax,
+            "id_carteira": settings.MOIP_RECEIVER_EMAIL,
+            "id_transacao": self.order.uuid,
+            "pagador_nome": (u'%s %s' %(self.order.invoice_firstname, self.order.invoice_lastname)).strip(),
+            "pagador_logradouro": self.order.invoice_line1,
+            "pagador_complemento": self.order.invoice_line2,
+            "pagador_cidade": self.order.invoice_city,
+            "pagador_estado": self.order.invoice_state,
+            "pagador_cep": self.order.invoice_code,
+            #"frete": "1",
+            "nome": u"%s - %s" % (shop.name, shop.shop_owner),
+            "valor": "%i" % (self.order.price - self.order.tax)*100, # no decimal digits
         }
-        """
-
-        parameters = "&".join(["%s=%s" % (k, v) for (k, v) in info.items()])
-        if getattr(settings, 'MOIP_DEBUG', settings.DEBUG):
-            url = SANDBOX_POSTBACK_ENDPOINT + "?" + parameters
+        form = MoipPaymentsForm(data=info)
+        if form.is_valid():
+            link = form.get_link()
         else:
-            url = POSTBACK_ENDPOINT + "?" + parameters
+            raise RuntimeError('Please check your MoIP settings and try again.') # should never occur
 
-        return url
+        #if getattr(settings, 'MOIP_DEBUG', settings.DEBUG):
+        #    url = SANDBOX_POSTBACK_ENDPOINT + "?" + parameters
+        #else:
+        #    url = POSTBACK_ENDPOINT + "?" + parameters
+
+        return link
