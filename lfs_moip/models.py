@@ -10,7 +10,7 @@ from django_moip.html.nit.models import MoipNIT
 
 class MoipOrderTransaction(models.Model):
     order = models.ForeignKey(Order, unique=True)
-    ipn = models.ManyToManyField(MoipNIT)
+    nit = models.ManyToManyField(MoipNIT)
 
 
 # See https://bitbucket.org/diefenbach/django-lfs/issue/197/
