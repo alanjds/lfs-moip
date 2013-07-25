@@ -21,7 +21,7 @@ setup(
     keywords='django e-commerce online-shop moip',
     author='Alan Justino da Silva',
     author_email='alan.justino@yahoo.com.br',
-    url='https://github.com/alanjds/moipy',
+    url='https://github.com/alanjds/lfs-moip',
     license='BSD',
     packages=find_packages(exclude=['ez_setup']),
     include_package_data=True,
