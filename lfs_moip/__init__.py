@@ -1,5 +1,4 @@
-# python imports
-import locale
+#coding:utf-8
 
 # lfs imports
 from lfs.plugins import PaymentMethodProcessor
@@ -13,8 +12,6 @@ from django.contrib.sites.models import Site
 from django.core.urlresolvers import reverse
 
 # django django_moip imports
-from django_moip.html.conf import POSTBACK_ENDPOINT
-from django_moip.html.conf import SANDBOX_POSTBACK_ENDPOINT
 from django_moip.html.forms import MoipPaymentsForm
 
 
@@ -40,7 +37,6 @@ class MoipProcessor(PaymentMethodProcessor):
         shop = lfs_get_object_or_404(Shop, pk=1)
         current_site = Site.objects.get(id=settings.SITE_ID)
 
-        #notify_url = "http://" + current_site.domain + reverse('moip-nit')
         redirector_url = "http://" + current_site.domain + reverse('lfs_thank_you')
 
         import ipdb; ipdb.set_trace()
@@ -59,10 +55,5 @@ class MoipProcessor(PaymentMethodProcessor):
         }
         form = MoipPaymentsForm(data=info)
         link = form.get_link()
-
-        #if getattr(settings, 'MOIP_DEBUG', settings.DEBUG):
-        #    url = SANDBOX_POSTBACK_ENDPOINT + "?" + parameters
-        #else:
-        #    url = POSTBACK_ENDPOINT + "?" + parameters
 
         return link
