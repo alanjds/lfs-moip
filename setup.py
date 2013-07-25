@@ -22,6 +22,7 @@ setup(
     author='Alan Justino da Silva',
     author_email='alan.justino@yahoo.com.br',
     url='https://github.com/alanjds/lfs-moip',
+    download_url='https://github.com/alanjds/lfs-moip/archive/'+version+'.zip',
     license='BSD',
     packages=find_packages(exclude=['ez_setup']),
     include_package_data=True,
