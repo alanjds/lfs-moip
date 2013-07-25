@@ -20,7 +20,6 @@ from django_moip.html.forms import MoipPaymentsForm
 
 class MoipProcessor(PaymentMethodProcessor):
     def process(self):
-        import ipdb; ipdb.set_trace()
         if getattr(settings, 'LFS_MOIP_INTEGRATION', 'HTML').upper() == 'API':
             return {
                 "accepted": True,
