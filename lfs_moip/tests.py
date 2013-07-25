@@ -21,6 +21,7 @@ from lfs_moip.models import MoipOrderTransaction
 from django_moip.html.nit.models import MoipNIT
 from django_moip.html.models import ST_MOIP_COMPLETED, ST_MOIP_DENIED
 
+raise RuntimeError('Tests are not (yet) ported from lfs-paypal')
 
 class MoipPaymentTestCase(TestCase):
     """Tests moip payments
