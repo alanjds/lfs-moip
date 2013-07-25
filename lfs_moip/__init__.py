@@ -21,15 +21,17 @@ from django_moip.html.forms import MoipPaymentsForm
 class MoipProcessor(PaymentMethodProcessor):
     def process(self):
         if getattr(settings, 'LFS_MOIP_INTEGRATION', 'HTML').upper() == 'API':
-            return {
+            result = {
                 "accepted": True,
                 "next_url": reverse("lfs_thank_you"),
             }
         else:
-            return {
+            result = {
                 "accepted": True,
                 "next_url": self.order.get_pay_link(self.request),
             }
+            self.request.session['moip_go_after_return_url'] = reverse('lfs_thank_you')
+        return result
 
     def get_create_order_time(self):
         return PM_ORDER_IMMEDIATELY
