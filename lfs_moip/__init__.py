@@ -39,7 +39,6 @@ class MoipProcessor(PaymentMethodProcessor):
 
         redirector_url = "http://" + current_site.domain + reverse('lfs_thank_you')
 
-        import ipdb; ipdb.set_trace()
         info = {
             "id_carteira": settings.MOIP_RECEIVER_EMAIL,
             "id_transacao": self.order.uuid.replace('-', ''),
